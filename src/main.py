@@ -10,7 +10,7 @@ def connect_to_database():
     """
     connection = pyodbc.connect(
         "DRIVER={SQL Server};"
-        "SERVER=DESKTOP-HS9F6CR\MSSQLSERVER01;"  # Replace with your SQL Server name
+        "SERVER=DESKTOP-HS9F6CR\MSSQLSERVER01;"  
         "DATABASE=EmployeeERP;"
         "Trusted_Connection=yes;"
     )
