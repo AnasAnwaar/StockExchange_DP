@@ -1,5 +1,6 @@
 import tkinter as tk
 from src.ui.employee_ui import EmployeeScreen
+from src.ui.payroll_ui import PayrollScreen  # Import the PayrollScreen
 
 
 class Dashboard(tk.Frame):
@@ -22,9 +23,12 @@ class Dashboard(tk.Frame):
         tk.Button(self, text="Employee Module", font=("Arial", 20),
                   command=lambda: self.app.show_screen(EmployeeScreen)).pack(pady=20)
 
-        # Placeholder for other module buttons (e.g., Equipment, Payroll, etc.)
+        # Payroll Module Button
+        tk.Button(self, text="Payroll Module", font=("Arial", 20),
+                  command=lambda: self.app.show_screen(PayrollScreen)).pack(pady=20)
+
+        # Placeholder for other module buttons (e.g., Equipment)
         tk.Button(self, text="Equipment Module (Coming Soon)", font=("Arial", 20), state="disabled").pack(pady=10)
-        tk.Button(self, text="Payroll Module (Coming Soon)", font=("Arial", 20), state="disabled").pack(pady=10)
 
         # Back Button (optional, doesn't navigate anywhere on Dashboard)
         tk.Button(self, text="Back", font=("Arial", 20),
