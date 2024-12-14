@@ -1,36 +1,59 @@
-from src.services.db_manager import DatabaseManager
-from src.models.employee import EmployeeBuilder
+from src.services.db_manager import DBManager
+
 
 class EmployeeService:
+    """
+    Service class for handling employee-related database operations.
+    """
+
     def __init__(self):
-        self.db = DatabaseManager().get_connection()
+        self.db_manager = DBManager()
+        self.connection = self.db_manager.get_connection()
+        self.cursor = self.db_manager.get_cursor()
 
-    def add_employee(self, id_number, name, email, phone, address, department, designation, date_of_joining):
-        employee_id = f"{department}--{id_number}"  # Generate EmployeeID
-
-        cursor = self.db.cursor()
+    def delete_employee(self, employee_id):
+        """
+        Deletes an employee from the database based on their EmployeeID.
+        :param employee_id: The ID of the employee to delete.
+        """
         try:
-            builder = EmployeeBuilder()
-            builder.set_employee_id(employee_id).set_name(name).set_email(email).set_phone(phone)
-            builder.set_address(address).set_department(department).set_designation(designation)
-            builder.set_date_of_joining(date_of_joining)
-            employee = builder.build()
-
-            cursor.execute("""
-                INSERT INTO Employee (EmployeeID, Name, Email, Phone, Address, Department, Designation, DateOfJoining)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                employee['EmployeeID'], employee['Name'], employee['Email'], employee['Phone'],
-                employee['Address'], employee['Department'], employee['Designation'], employee['DateOfJoining']
-            ))
-            self.db.commit()
+            query = "DELETE FROM Employee WHERE EmployeeID = ?"
+            self.cursor.execute(query, employee_id)
+            self.connection.commit()
         except Exception as e:
-            self.db.rollback()
-            raise Exception(f"Failed to add employee: {str(e)}")
+            self.connection.rollback()
+            raise Exception(f"Error deleting employee: {str(e)}")
+
+    def update_employee(self, employee_data):
+        """
+        Updates an employee's details in the database.
+        :param employee_data: A dictionary containing updated employee details.
+        """
+        try:
+            query = """
+                UPDATE Employee
+                SET Name = ?, Email = ?, Phone = ?, Address = ?, Department = ?, Designation = ?, DateOfJoining = ?
+                WHERE EmployeeID = ?
+            """
+            self.cursor.execute(query, (
+                employee_data["Name"], employee_data["Email"], employee_data["Phone"], employee_data["Address"],
+                employee_data["Department"], employee_data["Designation"], employee_data["DateOfJoining"],
+                employee_data["EmployeeID"]
+            ))
+            self.connection.commit()
+        except Exception as e:
+            self.connection.rollback()
+            raise Exception(f"Error updating employee: {str(e)}")
 
     def list_employees(self):
-        cursor = self.db.cursor()
-        cursor.execute("SELECT EmployeeID, Name, Email, Phone, Address, Department, Designation, DateOfJoining FROM Employee")
-        return [{"EmployeeID": row[0], "Name": row[1], "Email": row[2], "Phone": row[3],
-                 "Address": row[4], "Department": row[5], "Designation": row[6], "DateOfJoining": row[7]}
-                for row in cursor.fetchall()]
+        """
+        Fetches all employees from the database.
+        :return: A list of dictionaries containing employee details.
+        """
+        try:
+            query = "SELECT * FROM Employee"
+            self.cursor.execute(query)
+            columns = [column[0] for column in self.cursor.description]
+            return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+        except Exception as e:
+            raise Exception(f"Error fetching employees: {str(e)}")
