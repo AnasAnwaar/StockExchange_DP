@@ -1,40 +1,53 @@
+from decimal import Decimal
 from src.services.db_manager import DBManager
+from src.strategies.payroll_strategy import PayrollStrategy
+from src.strategies.salary_pay import SalaryPayStrategy
 
 
 class Payroll:
     """
-    Represents a payroll record.
+    Represents a payroll record, integrating strategy design for pay calculations.
     """
 
-    def __init__(self, employee_id, base_salary, bonus=0, deductions=0):
+    def __init__(self, employee_id, base_salary, bonus=0, deductions=0, strategy=None):
         self.employee_id = employee_id
-        self.base_salary = base_salary
-        self.bonus = bonus
-        self.deductions = deductions
+        self.base_salary = Decimal(base_salary) if not isinstance(base_salary, Decimal) else base_salary
+        self.bonus = Decimal(bonus) if not isinstance(bonus, Decimal) else bonus
+        self.deductions = Decimal(deductions) if not isinstance(deductions, Decimal) else deductions
+        self.strategy = strategy or SalaryPayStrategy()  # Default strategy if none is provided
 
     @property
     def net_pay(self):
         """
-        Calculate net pay as base salary + bonus - deductions.
+        Calculate net pay using the provided strategy.
         """
-        return self.base_salary + self.bonus - self.deductions
+        if not self.strategy:
+            raise ValueError("No payroll calculation strategy set.")
+        return self.strategy.calculate_pay(self.base_salary, self.bonus, self.deductions)
+
+    def set_strategy(self, strategy):
+        """
+        Dynamically change the payroll calculation strategy.
+        """
+        self.strategy = strategy
 
     @staticmethod
-    def from_dict(record):
+    def from_dict(record, strategy=None):
         """
-        Create a Payroll object from a database record dictionary.
+        Create a Payroll object from a database record dictionary with a strategy.
         """
         return Payroll(
             employee_id=record.get('EmployeeID'),
-            base_salary=record.get('BaseSalary'),
-            bonus=record.get('Bonus', 0),
-            deductions=record.get('Deductions', 0)
+            base_salary=Decimal(record.get('BaseSalary', 0)),
+            bonus=Decimal(record.get('Bonus', 0)),
+            deductions=Decimal(record.get('Deductions', 0)),
+            strategy=strategy
         )
 
     @classmethod
-    def fetch_all(cls):
+    def fetch_all(cls, strategy=None):
         """
-        Fetch all payroll records from the database.
+        Fetch all payroll records from the database, applying the given strategy.
         :return: List of Payroll objects.
         """
         try:
@@ -46,15 +59,15 @@ class Payroll:
                 print("No payroll records found.")
                 return []
             columns = [column[0] for column in cursor.description]
-            return [cls.from_dict(dict(zip(columns, row))) for row in records]
+            return [cls.from_dict(dict(zip(columns, row)), strategy) for row in records]
         except Exception as e:
             print(f"Error fetching payroll records: {e}")
             return []
 
     @classmethod
-    def fetch_by_employee_id(cls, employee_id):
+    def fetch_by_employee_id(cls, employee_id, strategy=None):
         """
-        Fetch payroll record for a specific employee.
+        Fetch payroll record for a specific employee, applying the given strategy.
         :param employee_id: The ID of the employee.
         :return: Payroll object or None if no record is found.
         """
@@ -67,7 +80,7 @@ class Payroll:
                 print(f"No payroll record found for EmployeeID: {employee_id}")
                 return None
             columns = [column[0] for column in cursor.description]
-            return cls.from_dict(dict(zip(columns, record)))
+            return cls.from_dict(dict(zip(columns, record)), strategy)
         except Exception as e:
             print(f"Error fetching payroll for EmployeeID {employee_id}: {e}")
             return None
@@ -81,7 +94,7 @@ class Payroll:
         :param bonus: The bonus amount (default: 0).
         :param deductions: The deductions amount (default: 0).
         """
-        if not employee_id or base_salary < 0 or bonus < 0 or deductions < 0:
+        if not employee_id or Decimal(base_salary) < 0 or Decimal(bonus) < 0 or Decimal(deductions) < 0:
             print(f"Invalid payroll data: EmployeeID={employee_id}, BaseSalary={base_salary}, Bonus={bonus}, Deductions={deductions}")
             return
 
@@ -93,7 +106,7 @@ class Payroll:
                 INSERT INTO Payroll (EmployeeID, BaseSalary, Bonus, Deductions)
                 VALUES (?, ?, ?, ?)
                 """,
-                (employee_id, base_salary, bonus, deductions)
+                (employee_id, float(base_salary), float(bonus), float(deductions))
             )
             db.get_connection().commit()
             print(f"Payroll record added for EmployeeID {employee_id}.")
@@ -122,15 +135,15 @@ class Payroll:
 
             if base_salary is not None:
                 update_fields.append("BaseSalary = ?")
-                update_values.append(base_salary)
+                update_values.append(float(base_salary))
 
             if bonus is not None:
                 update_fields.append("Bonus = ?")
-                update_values.append(bonus)
+                update_values.append(float(bonus))
 
             if deductions is not None:
                 update_fields.append("Deductions = ?")
-                update_values.append(deductions)
+                update_values.append(float(deductions))
 
             if not update_fields:
                 print("No fields to update for EmployeeID:", employee_id)

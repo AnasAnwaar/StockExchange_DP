@@ -1,37 +1,41 @@
 from src.services.db_manager import DBManager
-
+from src.strategies.salary_pay import SalaryPayStrategy
+from src.strategies.hourly_pay import HourlyPayStrategy
+from src.strategies.commission_pay import CommissionPayStrategy
 
 class Employee:
     """
-    Represents an Employee entity.
+    Represents an employee and includes functionality for determining payroll strategy.
     """
 
-    def __init__(self, employee_id, name, email, phone, address, department, designation, date_of_joining):
+    def __init__(self, employee_id, name, department, type="salaried", 
+                 hourly_rate=None, hours_worked=None, commission_rate=None, total_sales=None, base_salary=0.0):
         self.employee_id = employee_id
         self.name = name
-        self.email = email
-        self.phone = phone
-        self.address = address
         self.department = department
-        self.designation = designation
-        self.date_of_joining = date_of_joining
+        self.type = type
+        self.hourly_rate = hourly_rate
+        self.hours_worked = hours_worked
+        self.commission_rate = commission_rate
+        self.total_sales = total_sales
+        self.base_salary = base_salary  # For salaried employees
 
     @staticmethod
-    def _map_columns_to_attributes(record):
+    def from_dict(record):
         """
-        Maps database column names to Employee attribute names.
+        Create an Employee object from a database record dictionary.
         """
-        column_mapping = {
-            'EmployeeID': 'employee_id',
-            'Name': 'name',
-            'Email': 'email',
-            'Phone': 'phone',
-            'Address': 'address',
-            'Department': 'department',
-            'Designation': 'designation',
-            'DateOfJoining': 'date_of_joining',
-        }
-        return {column_mapping[key]: value for key, value in record.items()}
+        return Employee(
+            employee_id=record.get('EmployeeID'),
+            name=record.get('Name'),
+            department=record.get('Department'),
+            type=record.get('Type', 'salaried'),
+            hourly_rate=record.get('HourlyRate'),
+            hours_worked=record.get('HoursWorked'),
+            commission_rate=record.get('CommissionRate'),
+            total_sales=record.get('TotalSales'),
+            base_salary=record.get('BaseSalary', 0.0)  # Default to 0.0 if not provided
+        )
 
     @classmethod
     def fetch_all(cls):
@@ -42,12 +46,16 @@ class Employee:
         try:
             db = DBManager()
             cursor = db.get_cursor()
-            cursor.execute(
-                "SELECT EmployeeID, Name, Email, Phone, Address, Department, Designation, DateOfJoining FROM Employee"
-            )
+            cursor.execute("""
+                SELECT EmployeeID, Name, Department, Type, HourlyRate, HoursWorked, CommissionRate, TotalSales, BaseSalary
+                FROM Employee
+            """)
+            records = cursor.fetchall()
+            if not records:
+                print("No employees found.")
+                return []
             columns = [column[0] for column in cursor.description]
-            rows = cursor.fetchall()
-            return [cls(**cls._map_columns_to_attributes(dict(zip(columns, row)))) for row in rows]
+            return [cls.from_dict(dict(zip(columns, row))) for row in records]
         except Exception as e:
             print(f"Error fetching employees: {e}")
             return []
@@ -56,19 +64,22 @@ class Employee:
     def fetch_by_id(cls, employee_id):
         """
         Fetch an employee by their ID.
-        :param employee_id: The Employee ID to fetch.
-        :return: Employee object or None.
+        :param employee_id: The ID of the employee.
+        :return: Employee object or None if no record is found.
         """
         try:
             db = DBManager()
             cursor = db.get_cursor()
-            cursor.execute(
-                "SELECT EmployeeID, Name, Email, Phone, Address, Department, Designation, DateOfJoining FROM Employee WHERE EmployeeID = ?",
-                (employee_id,),
-            )
+            cursor.execute("""
+                SELECT EmployeeID, Name, Department, Type, HourlyRate, HoursWorked, CommissionRate, TotalSales, BaseSalary
+                FROM Employee WHERE EmployeeID = ?
+            """, (employee_id,))
+            record = cursor.fetchone()
+            if not record:
+                print(f"No employee found with ID: {employee_id}")
+                return None
             columns = [column[0] for column in cursor.description]
-            row = cursor.fetchone()
-            return cls(**cls._map_columns_to_attributes(dict(zip(columns, row)))) if row else None
+            return cls.from_dict(dict(zip(columns, record)))
         except Exception as e:
             print(f"Error fetching employee by ID {employee_id}: {e}")
             return None
@@ -77,136 +88,78 @@ class Employee:
     def fetch_by_name(cls, name):
         """
         Fetch an employee by their name.
-        :param name: The Employee name to fetch.
-        :return: Employee object or None.
+        :param name: The name of the employee.
+        :return: Employee object or None if no record is found.
         """
         try:
             db = DBManager()
             cursor = db.get_cursor()
-            cursor.execute(
-                "SELECT EmployeeID, Name, Email, Phone, Address, Department, Designation, DateOfJoining FROM Employee WHERE Name = ?",
-                (name,),
-            )
+            cursor.execute("""
+                SELECT EmployeeID, Name, Department, Type, HourlyRate, HoursWorked, CommissionRate, TotalSales, BaseSalary
+                FROM Employee WHERE Name = ?
+            """, (name,))
+            record = cursor.fetchone()
+            if not record:
+                print(f"No employee found with name: {name}")
+                return None
             columns = [column[0] for column in cursor.description]
-            row = cursor.fetchone()
-            return cls(**cls._map_columns_to_attributes(dict(zip(columns, row)))) if row else None
+            return cls.from_dict(dict(zip(columns, record)))
         except Exception as e:
             print(f"Error fetching employee by name {name}: {e}")
             return None
 
     @classmethod
-    def add_employee(cls, employee_data):
+    def update_salary(cls, employee_id, base_salary):
         """
-        Add a new employee to the database.
-        :param employee_data: Dictionary containing employee details.
+        Updates the BaseSalary of a salaried employee in the database.
         """
         try:
             db = DBManager()
             cursor = db.get_cursor()
-            cursor.execute(
-                """
-                INSERT INTO Employee (EmployeeID, Name, Email, Phone, Address, Department, Designation, DateOfJoining)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    employee_data['employee_id'],
-                    employee_data['name'],
-                    employee_data['email'],
-                    employee_data['phone'],
-                    employee_data['address'],
-                    employee_data['department'],
-                    employee_data['designation'],
-                    employee_data['date_of_joining'],
-                ),
-            )
+            cursor.execute("""
+                UPDATE Employee
+                SET BaseSalary = ?
+                WHERE EmployeeID = ?
+            """, (base_salary, employee_id))
             db.get_connection().commit()
-            print(f"Employee {employee_data['name']} added successfully.")
+            print(f"BaseSalary updated for EmployeeID: {employee_id}")
         except Exception as e:
-            print(f"Error adding employee {employee_data['name']}: {e}")
+            print(f"Error updating salary for EmployeeID {employee_id}: {e}")
+            raise RuntimeError(f"Failed to update salary for EmployeeID {employee_id}")
 
-
-class EmployeeBuilder:
-    """
-    Builder pattern for constructing Employee objects dynamically.
-    """
-
-    def __init__(self):
-        self._employee = {}
-
-    def set_employee_id(self, employee_id):
-        self._employee['employee_id'] = employee_id
-        return self
-
-    def set_name(self, name):
-        self._employee['name'] = name
-        return self
-
-    def set_email(self, email):
-        self._employee['email'] = email
-        return self
-
-    def set_phone(self, phone):
-        self._employee['phone'] = phone
-        return self
-
-    def set_address(self, address):
-        self._employee['address'] = address
-        return self
-
-    def set_department(self, department):
-        self._employee['department'] = department
-        return self
-
-    def set_designation(self, designation):
-        self._employee['designation'] = designation
-        return self
-
-    def set_date_of_joining(self, date_of_joining):
-        self._employee['date_of_joining'] = date_of_joining
-        return self
-
-    def build(self):
+    @classmethod
+    def update_hourly_rate(cls, employee_id, hourly_rate):
         """
-        Build and return the constructed Employee dictionary.
+        Updates the HourlyRate of an hourly employee in the database.
         """
-        required_fields = ['employee_id', 'name', 'department']
-        for field in required_fields:
-            if field not in self._employee:
-                raise ValueError(f"Missing required field: {field}")
-        return self._employee
-
-
-class Department:
-    """
-    Represents a department containing multiple employees.
-    """
-
-    def __init__(self, name):
-        self.name = name
-        self.employees = []
-
-    def add_employee(self, employee):
-        self.employees.append(employee)
-
-    def remove_employee(self, employee):
-        self.employees.remove(employee)
-
-    def list_employees(self):
-        return self.employees
-
-    def fetch_employees_from_db(self):
         try:
             db = DBManager()
             cursor = db.get_cursor()
-            cursor.execute(
-                "SELECT EmployeeID, Name, Email, Phone, Address, Department, Designation, DateOfJoining FROM Employee WHERE Department = ?",
-                (self.name,),
-            )
-            columns = [column[0] for column in cursor.description]
-            rows = cursor.fetchall()
-            self.employees = [Employee(**Employee._map_columns_to_attributes(dict(zip(columns, row)))) for row in rows]
+            cursor.execute("""
+                UPDATE Employee
+                SET HourlyRate = ?
+                WHERE EmployeeID = ?
+            """, (hourly_rate, employee_id))
+            db.get_connection().commit()
+            print(f"HourlyRate updated for EmployeeID: {employee_id}")
         except Exception as e:
-            print(f"Error fetching employees for department {self.name}: {e}")
+            print(f"Error updating hourly rate for EmployeeID {employee_id}: {e}")
+            raise RuntimeError(f"Failed to update hourly rate for EmployeeID {employee_id}")
 
-    def __str__(self):
-        return f"Department: {self.name}, Employees: {[emp.name for emp in self.employees]}"
+    def determine_strategy(self):
+        """
+        Determine the payroll strategy based on the employee type.
+        :return: An appropriate payroll strategy object.
+        """
+        if self.type == "hourly":
+            if self.hourly_rate is None or self.hours_worked is None:
+                raise ValueError(f"Hourly employee {self.name} is missing required fields: HourlyRate or HoursWorked.")
+            return HourlyPayStrategy(hourly_rate=self.hourly_rate, hours_worked=self.hours_worked)
+        elif self.type == "commission":
+            if self.commission_rate is None or self.total_sales is None:
+                raise ValueError(f"Commission employee {self.name} is missing required fields: CommissionRate or TotalSales.")
+            return CommissionPayStrategy(commission_rate=self.commission_rate, total_sales=self.total_sales)
+        else:  # Default to salaried
+            if self.base_salary is None:
+                raise ValueError(f"Salaried employee {self.name} is missing the BaseSalary field.")
+            return SalaryPayStrategy()

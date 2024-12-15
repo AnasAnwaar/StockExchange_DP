@@ -51,27 +51,17 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
         tree_frame = tk.Frame(self)
         tree_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        columns = ("EmployeeID", "Name", "Email", "Phone", "Address", "Department", "Designation", "DateOfJoining")
+        # Updated columns to include new fields
+        columns = (
+            "EmployeeID", "Name", "Email", "Phone", "Address", "Department", "Designation", "DateOfJoining",
+            "Type", "BaseSalary", "HourlyRate", "CommissionRate", "HoursWorked", "TotalSales"
+        )
         self.tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=15)
 
         # Define column headings and widths
-        self.tree.heading("EmployeeID", text="Employee ID")
-        self.tree.heading("Name", text="Name")
-        self.tree.heading("Email", text="Email")
-        self.tree.heading("Phone", text="Phone")
-        self.tree.heading("Address", text="Address")
-        self.tree.heading("Department", text="Department")
-        self.tree.heading("Designation", text="Designation")
-        self.tree.heading("DateOfJoining", text="Date of Joining")
-
-        self.tree.column("EmployeeID", width=100, anchor="center")
-        self.tree.column("Name", width=150, anchor="center")
-        self.tree.column("Email", width=200, anchor="center")
-        self.tree.column("Phone", width=100, anchor="center")
-        self.tree.column("Address", width=200, anchor="center")
-        self.tree.column("Department", width=100, anchor="center")
-        self.tree.column("Designation", width=150, anchor="center")
-        self.tree.column("DateOfJoining", width=120, anchor="center")
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=150, anchor="center")
 
         # Add a vertical scrollbar
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
@@ -105,8 +95,10 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
             employees = EmployeeService().list_employees()
             for emp in employees:
                 self.tree.insert("", "end", values=(
-                    emp["EmployeeID"], emp["Name"], emp["Email"], emp["Phone"],
-                    emp["Address"], emp["Department"], emp["Designation"], emp["DateOfJoining"]
+                    emp["EmployeeID"], emp["Name"], emp["Email"], emp["Phone"], emp["Address"],
+                    emp["Department"], emp["Designation"], emp["DateOfJoining"], emp["Type"],
+                    emp["BaseSalary"], emp["HourlyRate"], emp["CommissionRate"],
+                    emp["HoursWorked"], emp["TotalSales"]
                 ))
         except Exception as e:
             messagebox.showerror("Error", f"Failed to fetch employees: {str(e)}")
@@ -130,6 +122,12 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
             "Department": values[5],
             "Designation": values[6],
             "DateOfJoining": values[7],
+            "Type": values[8],
+            "BaseSalary": values[9],
+            "HourlyRate": values[10],
+            "CommissionRate": values[11],
+            "HoursWorked": values[12],
+            "TotalSales": values[13],
         }
 
         # Notify observers (e.g., the detail editor)
@@ -148,7 +146,7 @@ class EmployeeDetailEditor(tk.Frame, Observer):
         # Initialize selected_employee attribute
         self.selected_employee = None
 
-        # Input fields
+        # Input fields including new fields for Type, BaseSalary, HourlyRate, etc.
         self.fields = {
             "EmployeeID": tk.Entry(self, state="disabled"),
             "Name": tk.Entry(self),
@@ -157,7 +155,13 @@ class EmployeeDetailEditor(tk.Frame, Observer):
             "Address": tk.Entry(self),
             "Department": tk.Entry(self),
             "Designation": tk.Entry(self),
-            "DateOfJoining": tk.Entry(self)
+            "DateOfJoining": tk.Entry(self),
+            "Type": tk.Entry(self),
+            "BaseSalary": tk.Entry(self),
+            "HourlyRate": tk.Entry(self),
+            "CommissionRate": tk.Entry(self),
+            "HoursWorked": tk.Entry(self),
+            "TotalSales": tk.Entry(self),
         }
 
         # Layout for fields
