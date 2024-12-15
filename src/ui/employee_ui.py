@@ -101,6 +101,9 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
         Loads employees from the database and populates the Treeview.
         """
         try:
+            for row in self.tree.get_children():
+                self.tree.delete(row)
+
             employees = EmployeeService().list_employees()
             for emp in employees:
                 self.tree.insert("", "end", values=(
@@ -134,25 +137,10 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
 
         # Get the selected employee data
         values = self.tree.item(selected_item[0], "values")
-        employee_data = {
-            "EmployeeID": values[0],
-            "Name": values[1],
-            "Email": values[2],
-            "Phone": values[3],
-            "Address": values[4],
-            "Department": values[5],
-            "Designation": values[6],
-            "DateOfJoining": values[7],
-            "Type": values[8],
-            "BaseSalary": values[9],
-            "HourlyRate": values[10],
-            "CommissionRate": values[11],
-            "HoursWorked": values[12],
-            "TotalSales": values[13],
-        }
+        employee_data = {col: values[idx] for idx, col in enumerate(self.tree["columns"])}
 
         # Open the UpdateEmployeeWindow
-        UpdateEmployeeWindow(self, self.app, employee_data)
+        UpdateEmployeeWindow(self, employee_data, self.load_employees)
 
     def delete_employee(self):
         """
@@ -170,7 +158,7 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
         if confirm:
             try:
                 EmployeeService().delete_employee(employee_id)
-                self.tree.delete(selected_item[0])  # Remove from Treeview
+                self.load_employees()
                 messagebox.showinfo("Success", f"Employee ID: {employee_id} deleted successfully.")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to delete employee: {str(e)}")
@@ -180,31 +168,27 @@ class UpdateEmployeeWindow(tk.Toplevel):
     """
     Pop-up window for updating employee details.
     """
-    def __init__(self, parent, app, employee_data):
+    def __init__(self, parent, employee_data, refresh_callback):
         super().__init__(parent)
-        self.app = app
         self.title("Update Employee")
         self.geometry("700x600")
-
+        self.refresh_callback = refresh_callback
         self.employee_data = employee_data
 
-        # Input fields
+        # Fields for employee data
         self.fields = {}
-        row, col = 0, 0
+        row = 0
         for key, value in self.employee_data.items():
-            tk.Label(self, text=key, font=("Arial", 12)).grid(row=row, column=col, padx=10, pady=5, sticky="e")
+            tk.Label(self, text=key, font=("Arial", 12)).grid(row=row, column=0, padx=10, pady=5, sticky="e")
             entry = tk.Entry(self, width=30)
             entry.insert(0, value)
-            entry.grid(row=row, column=col + 1, padx=10, pady=5, sticky="w")
+            entry.grid(row=row, column=1, padx=10, pady=5, sticky="w")
             self.fields[key] = entry
-            col += 2
-            if col > 2:  # Adjust layout
-                col = 0
-                row += 1
+            row += 1
 
-        # Action Buttons
+        # Buttons
         button_frame = tk.Frame(self)
-        button_frame.grid(row=row + 1, column=0, columnspan=4, pady=20)
+        button_frame.grid(row=row, column=0, columnspan=2, pady=20)
 
         tk.Button(button_frame, text="Save Changes", font=("Arial", 12), bg="green", fg="white",
                   command=self.save_changes).pack(side="left", padx=10)
@@ -220,7 +204,8 @@ class UpdateEmployeeWindow(tk.Toplevel):
         try:
             EmployeeService().update_employee(updated_data)
             messagebox.showinfo("Success", "Employee details updated successfully.")
-            self.destroy()  # Close the window
+            self.destroy()
+            self.refresh_callback()  # Refresh the table after saving changes
         except Exception as e:
             messagebox.showerror("Error", f"Failed to update employee: {str(e)}")
 
