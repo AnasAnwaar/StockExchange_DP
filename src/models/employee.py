@@ -3,6 +3,7 @@ from src.strategies.salary_pay import SalaryPayStrategy
 from src.strategies.hourly_pay import HourlyPayStrategy
 from src.strategies.commission_pay import CommissionPayStrategy
 
+
 class Employee:
     """
     Represents an employee and includes functionality for determining payroll strategy.
@@ -145,6 +146,25 @@ class Employee:
         except Exception as e:
             print(f"Error updating hourly rate for EmployeeID {employee_id}: {e}")
             raise RuntimeError(f"Failed to update hourly rate for EmployeeID {employee_id}")
+
+    @classmethod
+    def update_commission_rate(cls, employee_id, commission_rate):
+        """
+        Updates the CommissionRate of a commission-based employee in the database.
+        """
+        try:
+            db = DBManager()
+            cursor = db.get_cursor()
+            cursor.execute("""
+                UPDATE Employee
+                SET CommissionRate = ?
+                WHERE EmployeeID = ?
+            """, (commission_rate, employee_id))
+            db.get_connection().commit()
+            print(f"CommissionRate updated for EmployeeID: {employee_id}")
+        except Exception as e:
+            print(f"Error updating commission rate for EmployeeID {employee_id}: {e}")
+            raise RuntimeError(f"Failed to update commission rate for EmployeeID {employee_id}")
 
     def determine_strategy(self):
         """

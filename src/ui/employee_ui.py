@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from src.services.employee_service import EmployeeService
-from src.models.observer import Subject, Observer
+from src.models.observer import Subject
 
 
 class EmployeeScreen(tk.Frame):
@@ -36,7 +36,7 @@ class EmployeeScreen(tk.Frame):
 
 class DisplayEmployeesScreen(tk.Frame, Subject):
     """
-    Screen to display all employees in a table format with a detail editor.
+    Screen to display all employees in a table format with action buttons.
     Implements the Subject (Observable) pattern.
     """
     def __init__(self, parent, app):
@@ -63,10 +63,13 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
             self.tree.heading(col, text=col)
             self.tree.column(col, width=150, anchor="center")
 
-        # Add a vertical scrollbar
-        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscroll=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
+        # Scrollbars
+        vertical_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        horizontal_scrollbar = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscroll=vertical_scrollbar.set, xscroll=horizontal_scrollbar.set)
+
+        vertical_scrollbar.pack(side="right", fill="y")
+        horizontal_scrollbar.pack(side="bottom", fill="x")
 
         self.tree.pack(fill="both", expand=True)
 
@@ -76,16 +79,22 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
         # Attach event listener for row selection
         self.tree.bind("<<TreeviewSelect>>", self.on_employee_select)
 
+        # Action Buttons
+        self.action_frame = tk.Frame(self)
+        self.action_frame.pack(pady=20)
+
+        # Update and Delete buttons (initially disabled)
+        self.update_button = tk.Button(self.action_frame, text="Update Employee", font=("Arial", 16),
+                                       command=self.update_employee, state="disabled")
+        self.update_button.pack(side="left", padx=20)
+
+        self.delete_button = tk.Button(self.action_frame, text="Delete Employee", font=("Arial", 16),
+                                       command=self.delete_employee, state="disabled")
+        self.delete_button.pack(side="left", padx=20)
+
         # Back Button
-        tk.Button(self, text="Back", font=("Arial", 20),
-                  command=self.app.go_back).pack(pady=20)
-
-        # Detail Editor Section
-        self.detail_editor = EmployeeDetailEditor(self, app)
-        self.detail_editor.pack(fill="both", side="bottom", padx=20, pady=20)
-
-        # Attach the editor as an observer
-        self.attach(self.detail_editor)
+        tk.Button(self.action_frame, text="Back", font=("Arial", 16),
+                  command=self.app.go_back).pack(side="left", padx=20)
 
     def load_employees(self):
         """
@@ -105,7 +114,19 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
 
     def on_employee_select(self, event):
         """
-        Handles employee selection from the Treeview and notifies observers.
+        Handles employee selection from the Treeview and enables action buttons.
+        """
+        selected_item = self.tree.selection()
+        if selected_item:
+            self.update_button.config(state="normal")
+            self.delete_button.config(state="normal")
+        else:
+            self.update_button.config(state="disabled")
+            self.delete_button.config(state="disabled")
+
+    def update_employee(self):
+        """
+        Opens a pop-up window for updating the selected employee.
         """
         selected_item = self.tree.selection()
         if not selected_item:
@@ -130,105 +151,83 @@ class DisplayEmployeesScreen(tk.Frame, Subject):
             "TotalSales": values[13],
         }
 
-        # Notify observers (e.g., the detail editor)
-        self.notify(employee_data)
+        # Open the UpdateEmployeeWindow
+        UpdateEmployeeWindow(self, self.app, employee_data)
+
+    def delete_employee(self):
+        """
+        Deletes the selected employee from the database.
+        """
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+
+        # Get the selected employee ID
+        employee_id = self.tree.item(selected_item[0], "values")[0]
+
+        # Confirm deletion
+        confirm = messagebox.askyesno("Confirm Deletion", f"Are you sure you want to delete Employee ID: {employee_id}?")
+        if confirm:
+            try:
+                EmployeeService().delete_employee(employee_id)
+                self.tree.delete(selected_item[0])  # Remove from Treeview
+                messagebox.showinfo("Success", f"Employee ID: {employee_id} deleted successfully.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete employee: {str(e)}")
 
 
-class EmployeeDetailEditor(tk.Frame, Observer):
+class UpdateEmployeeWindow(tk.Toplevel):
     """
-    A detail editor section to view and edit employee details.
-    Implements the Observer pattern.
+    Pop-up window for updating employee details.
     """
-    def __init__(self, parent, app):
-        tk.Frame.__init__(self, parent, bg="lightgrey")
-        self.app = app  # Reference to the main application
+    def __init__(self, parent, app, employee_data):
+        super().__init__(parent)
+        self.app = app
+        self.title("Update Employee")
+        self.geometry("700x600")
 
-        # Initialize selected_employee attribute
-        self.selected_employee = None
+        self.employee_data = employee_data
 
-        # Input fields including new fields for Type, BaseSalary, HourlyRate, etc.
-        self.fields = {
-            "EmployeeID": tk.Entry(self, state="disabled"),
-            "Name": tk.Entry(self),
-            "Email": tk.Entry(self),
-            "Phone": tk.Entry(self),
-            "Address": tk.Entry(self),
-            "Department": tk.Entry(self),
-            "Designation": tk.Entry(self),
-            "DateOfJoining": tk.Entry(self),
-            "Type": tk.Entry(self),
-            "BaseSalary": tk.Entry(self),
-            "HourlyRate": tk.Entry(self),
-            "CommissionRate": tk.Entry(self),
-            "HoursWorked": tk.Entry(self),
-            "TotalSales": tk.Entry(self),
-        }
-
-        # Layout for fields
+        # Input fields
+        self.fields = {}
         row, col = 0, 0
-        for label, entry in self.fields.items():
-            tk.Label(self, text=label, bg="lightgrey", font=("Arial", 12)).grid(row=row, column=col, padx=10, pady=5, sticky="e")
+        for key, value in self.employee_data.items():
+            tk.Label(self, text=key, font=("Arial", 12)).grid(row=row, column=col, padx=10, pady=5, sticky="e")
+            entry = tk.Entry(self, width=30)
+            entry.insert(0, value)
             entry.grid(row=row, column=col + 1, padx=10, pady=5, sticky="w")
+            self.fields[key] = entry
             col += 2
-            if col > 6:  # Move to the next row after 4 fields
+            if col > 2:  # Adjust layout
                 col = 0
                 row += 1
 
         # Action Buttons
-        button_frame = tk.Frame(self, bg="lightgrey")
-        button_frame.grid(row=row + 1, column=0, columnspan=8, pady=10)
+        button_frame = tk.Frame(self)
+        button_frame.grid(row=row + 1, column=0, columnspan=4, pady=20)
 
-        tk.Button(button_frame, text="Delete Employee", bg="red", fg="white", font=("Arial", 12),
-                  command=self.delete_employee).pack(side="left", padx=10)
-        tk.Button(button_frame, text="Save Changes", bg="green", fg="white", font=("Arial", 12),
+        tk.Button(button_frame, text="Save Changes", font=("Arial", 12), bg="green", fg="white",
                   command=self.save_changes).pack(side="left", padx=10)
-        tk.Button(button_frame, text="Discard Changes", bg="orange", font=("Arial", 12),
-                  command=self.reset_fields).pack(side="left", padx=10)
-
-    def update_data(self, data):
-        """
-        Updates the input fields when notified of a new selection.
-        """
-        self.selected_employee = data
-        for key, value in data.items():
-            if key in self.fields:
-                self.fields[key].config(state="normal")
-                self.fields[key].delete(0, tk.END)
-                self.fields[key].insert(0, value)
-                if key == "EmployeeID":  # Make EmployeeID uneditable
-                    self.fields[key].config(state="disabled")
-
-    def delete_employee(self):
-        """
-        Deletes the selected employee using the EmployeeService backend.
-        """
-        if not self.selected_employee:
-            messagebox.showwarning("No Selection", "Please select an employee to delete.")
-            return
-
-        try:
-            employee_id = self.selected_employee["EmployeeID"]
-            EmployeeService().delete_employee(employee_id)
-            messagebox.showinfo("Success", "Employee deleted successfully!")
-            self.app.go_back()  # Navigate back to refresh
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+        tk.Button(button_frame, text="Discard Changes", font=("Arial", 12), bg="orange",
+                  command=self.discard_changes).pack(side="left", padx=10)
+        tk.Button(button_frame, text="Back", font=("Arial", 12), command=self.destroy).pack(side="left", padx=10)
 
     def save_changes(self):
         """
-        Saves changes to the employee's details using the EmployeeService backend.
+        Save updated employee details.
         """
+        updated_data = {key: field.get() for key, field in self.fields.items()}
         try:
-            updated_data = {key: field.get() for key, field in self.fields.items()}
             EmployeeService().update_employee(updated_data)
-            messagebox.showinfo("Success", "Employee updated successfully!")
-            self.app.go_back()  # Navigate back to refresh
+            messagebox.showinfo("Success", "Employee details updated successfully.")
+            self.destroy()  # Close the window
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error", f"Failed to update employee: {str(e)}")
 
-    def reset_fields(self):
+    def discard_changes(self):
         """
-        Resets fields to the original data.
+        Reset fields to their original values.
         """
-        if self.selected_employee:
-            self.update_data(self.selected_employee)
+        for key, value in self.employee_data.items():
+            self.fields[key].delete(0, tk.END)
+            self.fields[key].insert(0, value)
