@@ -1,0 +1,6 @@
+E:\Project Backups\VS Code Projects\STOCKEXCHANGE\DP_Project\obj\Debug\net6.0-windows\DP_PROJECT.csproj.AssemblyReference.cache
+E:\Project Backups\VS Code Projects\STOCKEXCHANGE\DP_Project\obj\Debug\net6.0-windows\DP_PROJECT.GeneratedMSBuildEditorConfig.editorconfig
+E:\Project Backups\VS Code Projects\STOCKEXCHANGE\DP_Project\obj\Debug\net6.0-windows\DP_PROJECT.AssemblyInfoInputs.cache
+E:\Project Backups\VS Code Projects\STOCKEXCHANGE\DP_Project\obj\Debug\net6.0-windows\DP_PROJECT.AssemblyInfo.cs
+E:\Project Backups\VS Code Projects\STOCKEXCHANGE\DP_Project\obj\Debug\net6.0-windows\DP_PROJECT.csproj.CoreCompileInputs.cache
+E:\Project Backups\VS Code Projects\STOCKEXCHANGE\DP_Project\obj\Debug\net6.0-windows\DP_PROJECT.sourcelink.json

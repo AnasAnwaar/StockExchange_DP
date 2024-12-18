@@ -12,10 +12,10 @@ namespace DP_PROJECT
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // Connection string for database
-            var connectionString = "YourConnectionStringHere";
+            
+            var connectionString = "Server=DESKTOP-HS9F6CR\\MSSQLSERVER01;Database=DB_StockExchange;Trusted_Connection=True;";
 
-            // Start with the login form
+            
             var loginForm = new LoginForm(connectionString);
             Application.Run(loginForm);
         }
