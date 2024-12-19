@@ -1,16 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework> <!-- Ensure you're using .NET 6 or higher -->
+    <TargetFramework>net9.0-windows</TargetFramework>
     <UseWinForms>true</UseWinForms>
+    <NoWarn>NETSDK1137;NETSDK1106</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Add NuGet package dependencies here if needed -->
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.8.5" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.2.0" />
   </ItemGroup>
-
 </Project>

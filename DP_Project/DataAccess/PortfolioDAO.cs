@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient; 
+using System.Data;             
+
 using DP_PROJECT.Models;
 
 namespace DP_PROJECT.DataAccess
@@ -44,6 +46,38 @@ namespace DP_PROJECT.DataAccess
             catch (Exception ex)
             {
                 throw new Exception("Error retrieving portfolios: " + ex.Message, ex);
+            }
+        }
+
+        public Portfolio GetPortfolioByUserAndStock(int userId, int stockId)
+        {
+            try
+            {
+                var query = "SELECT * FROM Portfolios WHERE UserId = @UserId AND StockId = @StockId";
+                using (var command = new SqlCommand(query, _connection))
+                {
+                    command.Parameters.AddWithValue("@UserId", userId);
+                    command.Parameters.AddWithValue("@StockId", stockId);
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return new Portfolio
+                            {
+                                PortfolioId = (int)reader["PortfolioId"],
+                                UserId = (int)reader["UserId"],
+                                StockId = (int)reader["StockId"],
+                                Quantity = (int)reader["Quantity"]
+                            };
+                        }
+                    }
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error retrieving portfolio by user and stock: " + ex.Message, ex);
             }
         }
 

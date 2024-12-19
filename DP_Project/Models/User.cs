@@ -1,3 +1,5 @@
+using System;
+
 namespace DP_PROJECT.Models
 {
     public class User

@@ -2,6 +2,7 @@ using DP_PROJECT.Controllers;
 using System;
 using System.Windows.Forms;
 
+
 namespace DP_PROJECT.UI
 {
     public partial class ViewStocksForm : Form

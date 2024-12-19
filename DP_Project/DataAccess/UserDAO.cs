@@ -1,44 +1,48 @@
 using System;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using DP_PROJECT.Models;
+using Microsoft.AspNetCore.Identity;
 
 namespace DP_PROJECT.DataAccess
 {
     public class UserDAO
     {
         private readonly SqlConnection _connection;
+        private readonly PasswordHasher<User> _passwordHasher;
 
         public UserDAO(string connectionString)
         {
             _connection = DatabaseConnection.GetInstance(connectionString).GetConnection();
+            _passwordHasher = new PasswordHasher<User>(); 
         }
 
-        
         public User AuthenticateUser(string username, string password)
         {
             try
             {
-                
-                string passwordHash = PasswordHasher.HashPassword(password);
-
-              
-                var query = "SELECT * FROM Users WHERE Username = @Username AND PasswordHash = @PasswordHash";
+                var query = "SELECT * FROM Users WHERE Username = @Username";
                 using (var command = new SqlCommand(query, _connection))
                 {
                     command.Parameters.AddWithValue("@Username", username);
-                    command.Parameters.AddWithValue("@PasswordHash", passwordHash);
 
                     using (var reader = command.ExecuteReader())
                     {
                         if (reader.Read())
                         {
-                            return new User
+                            var user = new User
                             {
                                 UserId = (int)reader["UserId"],
                                 Username = reader["Username"].ToString(),
                                 Email = reader["Email"].ToString(),
+                                PasswordHash = reader["PasswordHash"].ToString(),
                                 CreatedAt = (DateTime)reader["CreatedAt"]
                             };
+
+                            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+                            if (result == PasswordVerificationResult.Success)
+                            {
+                                return user;
+                            }
                         }
                     }
                 }
@@ -51,20 +55,17 @@ namespace DP_PROJECT.DataAccess
             }
         }
 
-        
         public void AddUser(User user)
         {
             try
             {
-                
-                string passwordHash = PasswordHasher.HashPassword(user.PasswordHash);
+                user.PasswordHash = _passwordHasher.HashPassword(user, user.PasswordHash);
 
-               
                 var query = "INSERT INTO Users (Username, PasswordHash, Email, CreatedAt) VALUES (@Username, @PasswordHash, @Email, @CreatedAt)";
                 using (var command = new SqlCommand(query, _connection))
                 {
                     command.Parameters.AddWithValue("@Username", user.Username);
-                    command.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                    command.Parameters.AddWithValue("@PasswordHash", user.PasswordHash);
                     command.Parameters.AddWithValue("@Email", user.Email);
                     command.Parameters.AddWithValue("@CreatedAt", user.CreatedAt);
 
