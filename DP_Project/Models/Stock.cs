@@ -4,10 +4,17 @@ namespace DP_PROJECT.Models
 {
     public class Stock
     {
-        public int StockId { get; set; }
-        public string StockName { get; set; }
-        public string StockSymbol { get; set; }
+        public int Id { get; set; }
+        public string Symbol { get; set; }
+        public string Name { get; set; }
         public decimal CurrentPrice { get; set; }
-        public DateTime LastUpdated { get; set; }
+        public StockType Type { get; set; }
+    }
+
+    public enum StockType
+    {
+        Equity,
+        Bond,
+        ETF
     }
 }

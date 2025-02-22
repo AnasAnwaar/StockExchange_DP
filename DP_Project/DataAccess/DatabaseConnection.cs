@@ -1,22 +1,19 @@
 using Microsoft.Data.SqlClient;
 using System;
+using System.Threading.Tasks;
 
 namespace DP_PROJECT.DataAccess
 {
     public sealed class DatabaseConnection
     {
-        private static DatabaseConnection _instance;
-        private static readonly object _lock = new object();
-        private readonly SqlConnection _connection;
+        private static volatile DatabaseConnection _instance;
+        private static readonly object _lock = new();
+        private readonly string _connectionString;
+        private SqlConnection _connection;
 
         private DatabaseConnection(string connectionString)
         {
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                throw new ArgumentException("Connection string cannot be null or empty.", nameof(connectionString));
-            }
-
-            _connection = new SqlConnection(connectionString);
+            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
         }
 
         public static DatabaseConnection GetInstance(string connectionString = null)
@@ -25,14 +22,8 @@ namespace DP_PROJECT.DataAccess
             {
                 lock (_lock)
                 {
-                    if (_instance == null)
-                    {
-                        if (connectionString == null)
-                        {
-                            throw new InvalidOperationException("Connection string must be provided when initializing the singleton.");
-                        }
-                        _instance = new DatabaseConnection(connectionString);
-                    }
+                    _instance ??= new DatabaseConnection(connectionString ?? 
+                        throw new ArgumentException("Connection string required for initialization"));
                 }
             }
             return _instance;
@@ -40,16 +31,20 @@ namespace DP_PROJECT.DataAccess
 
         public SqlConnection GetConnection()
         {
-            if (_connection.State == System.Data.ConnectionState.Closed || _connection.State == System.Data.ConnectionState.Broken)
+            if (_connection == null || _connection.State == System.Data.ConnectionState.Closed)
             {
-                try
-                {
-                    _connection.Open();
-                }
-                catch (SqlException ex)
-                {
-                    throw new Exception("Failed to open the database connection. Check the connection string and database availability.", ex);
-                }
+                _connection = new SqlConnection(_connectionString);
+                _connection.Open();
+            }
+            return _connection;
+        }
+
+        public async Task<SqlConnection> GetConnectionAsync()
+        {
+            if (_connection == null || _connection.State == System.Data.ConnectionState.Closed)
+            {
+                _connection = new SqlConnection(_connectionString);
+                await _connection.OpenAsync();
             }
             return _connection;
         }

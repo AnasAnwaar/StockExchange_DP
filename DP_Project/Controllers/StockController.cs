@@ -3,54 +3,68 @@ using DP_PROJECT.BusinessLogic;
 using DP_PROJECT.DataAccess;
 using DP_PROJECT.Models;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace DP_PROJECT.Controllers
 {
-    public class StockController
+    [ApiController]
+    [Route("api/[controller]")]
+    public class StockController : ControllerBase
     {
-        private readonly StockDAO _stockDAO;
-        private readonly StockFacade _stockFacade;
+        private readonly IStockService _stockService;
+        private readonly CommandHistory _commandHistory;
+        private readonly ILogger<StockController> _logger;
 
-        public StockController(string connectionString)
+        public StockController(
+            IStockService stockService, 
+            CommandHistory commandHistory,
+            ILogger<StockController> logger)
         {
-            _stockDAO = new StockDAO(connectionString);
-            _stockFacade = new StockFacade(connectionString);
+            _stockService = stockService ?? throw new ArgumentNullException(nameof(stockService));
+            _commandHistory = commandHistory ?? throw new ArgumentNullException(nameof(commandHistory));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public List<Stock> GetAllStocks()
+        [HttpPost("buy")]
+        public async Task<IActionResult> BuyStock([FromBody] BuyStockRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             try
             {
-                return _stockDAO.GetAllStocks();
+                var command = new BuyStockCommand(_stockService, request.UserId, 
+                    request.StockId, request.Quantity, request.Price);
+                
+                _commandHistory.ExecuteCommand(command);
+                return Ok(new { Message = "Stock purchase executed successfully" });
             }
             catch (Exception ex)
             {
-                throw new Exception("Error fetching stocks: " + ex.Message, ex);
+                _logger.LogError(ex, "Error processing buy request {@Request}", request);
+                return StatusCode(500, new { Message = "An error occurred while processing your request" });
             }
         }
 
-        public void BuyStock(int userId, int stockId, int quantity)
+        [HttpPost("undo")]
+        public IActionResult UndoLastTransaction()
         {
             try
             {
-                _stockFacade.BuyStock(userId, stockId, quantity);
+                if (_commandHistory.Undo())
+                    return Ok(new { Message = "Last transaction undone successfully" });
+                return BadRequest(new { Message = "No transaction to undo" });
             }
             catch (Exception ex)
             {
-                throw new Exception("Error buying stock: " + ex.Message, ex);
+                _logger.LogError(ex, "Error processing undo request");
+                return StatusCode(500, new { Message = "An error occurred while processing your request" });
             }
         }
 
-        public void SellStock(int userId, int stockId, int quantity)
-        {
-            try
-            {
-                _stockFacade.SellStock(userId, stockId, quantity);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error selling stock: " + ex.Message, ex);
-            }
-        }
+        // Implement other endpoints...
     }
 }
